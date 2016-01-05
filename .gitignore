@@ -1,0 +1,20 @@
+.DS_Store
+*.rbc
+capybara-*.html
+.rspec
+/log
+/tmp
+/db/*.sqlite3*
+/public/system
+# Do not commit asset precompiled
+# /public/assets
+/coverage/
+/spec/tmp
+**.orig
+**.bak
+
+# unless supporting rvm < 1.11.0 or doing something fancy, ignore this:
+.rvmrc
+
+# ignore dotenv files
+.env
