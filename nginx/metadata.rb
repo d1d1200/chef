@@ -1,118 +1,84 @@
-name              'nginx'
-maintainer        'Opscode, Inc.'
-maintainer_email  'cookbooks@opscode.com'
-license           'Apache 2.0'
-description       'Installs and configures nginx, modified to have default backend reverse proxied'
-version           '2.7.11'
+name        "nginx"
+description "Installs and configures nginx"
+maintainer  "AWS OpsWorks"
+license     "Apache 2.0"
+version     "1.0.0"
 
-recipe 'nginx',         'Installs nginx package and sets up configuration with Debian apache style with sites-enabled/sites-available'
-recipe 'nginx::source', 'Installs nginx from source and sets up configuration with Debian apache style with sites-enabled/sites-available'
-# recipe 'nginx::backend', 'Install nginx configuration for default reverse proxy backend'
+attribute "nginx/dir",
+  :display_name => "Nginx Directory",
+  :description => "Location of nginx configuration files",
+  :default => "/etc/nginx"
 
-depends 'apt',             '>= 2.2'
-depends 'bluepill',        '>= 2.3'
-depends 'build-essential', '>= 2.0'
-depends 'ohai',            '>= 2.0'
-depends 'runit',           '>= 1.2'
-depends 'yum-epel',        '>= 0.3'
+attribute "nginx/log_dir",
+  :display_name => "Nginx Log Directory",
+  :description => "Location for nginx logs",
+  :default => "/var/log/nginx"
 
-supports 'amazon'
-supports 'centos'
-supports 'debian'
-supports 'fedora'
-supports 'oracle'
-supports 'redhat'
-supports 'scientific'
-supports 'ubuntu'
+attribute "nginx/user",
+  :display_name => "Nginx User",
+  :description => "User nginx will run as",
+  :default => "www-data"
 
-provides 'nginx::backend'
+attribute "nginx/binary",
+  :display_name => "Nginx Binary",
+  :description => "Location of the nginx server binary",
+  :default => "/usr/sbin/nginx"
 
-attribute 'nginx/dir',
-  :display_name => 'Nginx Directory',
-  :description => 'Location of nginx configuration files',
-  :default => '/etc/nginx'
+attribute "nginx/gzip",
+  :display_name => "Nginx Gzip",
+  :description => "Whether gzip is enabled",
+  :default => "on"
 
-attribute 'nginx/log_dir',
-  :display_name => 'Nginx Log Directory',
-  :description => 'Location for nginx logs',
-  :default => '/var/log/nginx'
+attribute "nginx/gzip_http_version",
+  :display_name => "Nginx Gzip HTTP Version",
+  :description => "Version of HTTP Gzip",
+  :default => "1.0"
 
-attribute 'nginx/user',
-  :display_name => 'Nginx User',
-  :description => 'User nginx will run as',
-  :default => 'www-data'
+attribute "nginx/gzip_comp_level",
+  :display_name => "Nginx Gzip Compression Level",
+  :description => "Amount of compression to use",
+  :default => "2"
 
-attribute 'nginx/binary',
-  :display_name => 'Nginx Binary',
-  :description => 'Location of the nginx server binary',
-  :default => '/usr/sbin/nginx'
+attribute "nginx/gzip_proxied",
+  :display_name => "Nginx Gzip Proxied",
+  :description => "Whether gzip is proxied",
+  :default => "any"
 
-attribute 'nginx/gzip',
-  :display_name => 'Nginx Gzip',
-  :description => 'Whether gzip is enabled',
-  :default => 'on'
+attribute "nginx/gzip_types",
+  :display_name => "Nginx Gzip Types",
+  :description => "Supported MIME-types for gzip",
+  :type => "array",
+  :default => [ "text/plain", "text/html", "text/css", "application/x-javascript", "text/xml", "application/xml", "application/xml+rss", "text/javascript" ]
 
-attribute 'nginx/gzip_http_version',
-  :display_name => 'Nginx Gzip HTTP Version',
-  :description => 'Version of HTTP Gzip',
-  :default => '1.0'
+attribute "nginx/keepalive",
+  :display_name => "Nginx Keepalive",
+  :description => "Whether to enable keepalive",
+  :default => "on"
 
-attribute 'nginx/gzip_comp_level',
-  :display_name => 'Nginx Gzip Compression Level',
-  :description => 'Amount of compression to use',
-  :default => '2'
+attribute "nginx/keepalive_timeout",
+  :display_name => "Nginx Keepalive Timeout",
+  :default => "65"
 
-attribute 'nginx/gzip_proxied',
-  :display_name => 'Nginx Gzip Proxied',
-  :description => 'Whether gzip is proxied',
-  :default => 'any'
+attribute "nginx/worker_processes",
+  :display_name => "Nginx Worker Processes",
+  :description => "Number of worker processes",
+  :default => "1"
 
-attribute 'nginx/gzip_types',
-  :display_name => 'Nginx Gzip Types',
-  :description => 'Supported MIME-types for gzip',
-  :type => 'array',
-  :default => ['text/plain', 'text/css', 'application/x-javascript', 'text/xml', 'application/xml', 'application/xml+rss', 'text/javascript', 'application/javascript', 'application/json']
+attribute "nginx/worker_connections",
+  :display_name => "Nginx Worker Connections",
+  :description => "Number of connections per worker",
+  :default => "1024"
 
-attribute 'nginx/keepalive',
-  :display_name => 'Nginx Keepalive',
-  :description => 'Whether to enable keepalive',
-  :default => 'on'
+attribute "nginx/server_names_hash_bucket_size",
+  :display_name => "Nginx Server Names Hash Bucket Size",
+  :default => "64"
 
-attribute 'nginx/keepalive_timeout',
-  :display_name => 'Nginx Keepalive Timeout',
-  :default => '65'
+attribute "nginx/proxy_read_timeout",
+  :display_name => "Nginx Proxy Read Timeout",
+  :description => "Sets the read timeout for the response of the proxied server. It determines how long nginx will wait to get the response to a request.",
+  :default => "60"
 
-attribute 'nginx/worker_processes',
-  :display_name => 'Nginx Worker Processes',
-  :description => 'Number of worker processes',
-  :default => '1'
-
-attribute 'nginx/worker_connections',
-  :display_name => 'Nginx Worker Connections',
-  :description => 'Number of connections per worker',
-  :default => '1024'
-
-attribute 'nginx/server_names_hash_bucket_size',
-  :display_name => 'Nginx Server Names Hash Bucket Size',
-  :default => '64'
-
-attribute 'nginx/types_hash_max_size',
-  :display_name => 'Nginx Types Hash Max Size',
-  :default => '2048'
-
-attribute 'nginx/types_hash_bucket_size',
-  :display_name => 'Nginx Types Hash Bucket Size',
-  :default => '64'
-
-attribute 'nginx/disable_access_log',
-  :display_name => 'Disable Access Log',
-  :default => 'false'
-
-attribute 'nginx/default_site_enabled',
-  :display_name => 'Default site enabled',
-  :default => 'true'
-
-attribute 'nginx/sendfile',
-  :display_name => 'Nginx sendfile',
-  :description => 'Whether to enable sendfile',
-  :default => 'on'
+attribute "nginx/proxy_send_timeout",
+  :display_name => "Nginx Proxy Send Timeout",
+  :description => "Assigns timeout with the transfer of request to the upstream server.",
+  :default => "60"

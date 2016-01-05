@@ -1,3 +1,4 @@
+# original code license
 #
 # Cookbook Name:: passenger_apache2
 # Recipe:: default
@@ -22,30 +23,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include_recipe 'apache2'
+include_recipe "packages"
+include_recipe "gem_support"
+include_recipe 'apache2::service'
 
-case node['passenger']['install_method']
-when 'source'
-  include_recipe 'passenger_apache2::source'
-when 'package'
-  include_recipe 'passenger_apache2::package'
-  node.set['passenger']['manage_module_conf'] = false
+case node[:platform]
+when "centos","redhat","amazon"
+  package "httpd-devel"
+  if node['platform_version'].to_f < 6.0
+    package 'curl-devel'
+  else
+    ['libcurl-devel','openssl-devel','zlib-devel'].each do |pkg|
+      package pkg do
+        action :upgrade
+      end
+    end
+  end
 else
-  raise "Unsupported passenger installation method requested: #{node['passenger']['install_method']}. Supported: source or package."
-end
-
-if(node['passenger']['manage_module_conf'])
-  include_recipe 'passenger_apache2::mod_rails'
-end
-
-ruby_block "reload_ruby" do
-  block do
-    # Only available on Chef 10.x, but only needed there anyway
-    if node.respond_to?(:load_attribute_by_short_filename)
-      node.load_attribute_by_short_filename('default', 'passenger_apache2')
+  ['apache2-prefork-dev','libapr1-dev'].each do |pkg|
+    package pkg do
+      action :upgrade
     end
   end
 
-  action :nothing
-  subscribes :create, "ohai[reload]", :immediately
+  if node[:passenger][:version] >= '3.0.0'
+    package 'libcurl4-openssl-dev'
+  end
+end
+
+ruby_block "ensure only our passenger version is installed by deinstalling any other version" do
+  block do
+    ensure_only_gem_version("rack", node[:passenger][:rack_version])
+    ensure_only_gem_version("passenger", node[:passenger][:version])
+  end
+end
+
+execute "passenger_module" do
+  command 'passenger-install-apache2-module -a'
+  creates node[:passenger][:module_path]
+  notifies :restart, "service[apache2]"
+end
+
+bash "Enable selinux httpd_t for passenger" do
+  user "root"
+  code <<-EOH
+    semanage permissive -a httpd_t
+  EOH
+  not_if { OpsWorks::ShellOut.shellout("/usr/sbin/semanage permissive -l") =~ /httpd_t/ }
+  only_if { platform_family?("rhel") && ::File.exist?("/usr/sbin/getenforce") && OpsWorks::ShellOut.shellout("/usr/sbin/getenforce").strip == "Enforcing" }
 end

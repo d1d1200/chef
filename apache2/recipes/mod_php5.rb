@@ -1,16 +1,15 @@
 #
 # Cookbook Name:: apache2
-# Recipe:: mod_php5
+# Recipe:: php5 
 #
-# Copyright 2008-2013, Opscode, Inc.
-# Copyright 2014, OneHealth Solutions, Inc.
+# Copyright 2008, OpsCode, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
+# 
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
+# 
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,48 +17,32 @@
 # limitations under the License.
 #
 
-case node['platform_family']
+case node[:platform_family]
 when 'debian'
-  package 'libapache2-mod-php5'
-when 'arch'
-  package 'php-apache' do
-    notifies :run, 'execute[generate-module-list]', :immediately
+  package 'libapache2-mod-php5' do
+    action :install
   end
 when 'rhel'
-  package 'which'
-  package 'php package' do
-    if node['platform_version'].to_f < 6.0
-      package_name 'php53'
-    else
-      package_name 'php'
-    end
-    notifies :run, 'execute[generate-module-list]', :immediately
-    not_if 'which php'
-  end
-when 'fedora'
-  package 'which'
   package 'php' do
-    notifies :run, 'execute[generate-module-list]', :immediately
+    action :install
+    notifies :run, "execute[generate-module-list]", :immediately
     not_if 'which php'
   end
-when 'suse'
-  package 'which'
-  package 'php' do
-    notifies :run, 'execute[generate-module-list]', :immediately
-    not_if 'which php'
-  end
-when 'freebsd'
-  %w(php5 mod_php5 libxml2).each do |pkg|
-    freebsd_package pkg
-  end
-end
 
-file "#{node['apache']['dir']}/conf.d/php.conf" do
-  action :delete
-  backup false
+  # remove stock config
+  file File.join(node[:apache][:dir], 'conf.d', 'php.conf') do
+    action :delete
+  end
+
+  # replace with debian config
+  template File.join(node[:apache][:dir], 'mods-available', 'php5.conf') do
+    source 'mods/php5.conf.erb'
+    notifies :restart, "service[apache2]"
+  end
 end
 
 apache_module 'php5' do
-  conf true
-  filename 'libphp5.so'
+  if platform_family?('rhel')
+    filename 'libphp5.so'
+  end
 end

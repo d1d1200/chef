@@ -1,91 +1,79 @@
+###
+# Do not use this file to override the haproxy cookbook's default
+# attributes.  Instead, please use the customize.rb attributes file,
+# which will keep your adjustments separate from the AWS OpsWorks
+# codebase and make it easier to upgrade.
 #
-# Cookbook Name:: haproxy
-# Default:: default
+# However, you should not edit customize.rb directly. Instead, create
+# "haproxy/attributes/customize.rb" in your cookbook repository and
+# put the overrides in YOUR customize.rb file.
 #
-# Copyright 2010, Opscode, Inc.
+# Do NOT create an 'haproxy/attributes/default.rb' in your cookbooks. Doing so
+# would completely override this file and might cause upgrade issues.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# See also: http://docs.aws.amazon.com/opsworks/latest/userguide/customizing.html
+###
 
-default['haproxy']['user'] = "haproxy"
-default['haproxy']['group'] = "haproxy"
+include_attribute 'opsworks_commons::default'
 
-default['haproxy']['enable_default_http'] = true
-default['haproxy']['mode'] = "http"
-default['haproxy']['incoming_address'] = "0.0.0.0"
-default['haproxy']['incoming_port'] = 80
-default['haproxy']['members'] = [{
-  "hostname" => "localhost",
-  "ipaddress" => "127.0.0.1",
-  "port" => 4000,
-  "ssl_port" => 4000
-}, {
-  "hostname" => "localhost",
-  "ipaddress" => "127.0.0.1",
-  "port" => 4001,
-  "ssl_port" => 4001
-}]
-default['haproxy']['member_port'] = 8080
-default['haproxy']['member_weight'] = 1
-default['haproxy']['app_server_role'] = "webserver"
-default['haproxy']['balance_algorithm'] = "roundrobin"
-default['haproxy']['enable_ssl'] = false
-default['haproxy']['ssl_incoming_address'] = "0.0.0.0"
-default['haproxy']['ssl_incoming_port'] = 443
-default['haproxy']['ssl_member_port'] = 8443
-default['haproxy']['httpchk'] = nil
-default['haproxy']['ssl_httpchk'] = nil
-default['haproxy']['enable_admin'] = true
-default['haproxy']['admin']['address_bind'] = "127.0.0.1"
-default['haproxy']['admin']['port'] = 22002
-default['haproxy']['admin']['options'] = { 'stats' => 'uri /' }
-default['haproxy']['enable_stats_socket'] = false
-default['haproxy']['stats_socket_path'] = "/var/run/haproxy.sock"
-default['haproxy']['stats_socket_user'] = node['haproxy']['user']
-default['haproxy']['stats_socket_group'] = node['haproxy']['group']
-default['haproxy']['pid_file'] = "/var/run/haproxy.pid"
+rhel_arch = RUBY_PLATFORM.match(/64/) ? 'x86_64' : 'i686'
+default[:haproxy][:version] = '1.4.22'
+default[:haproxy][:patchlevel] = '1'
+default[:haproxy][:rpm] = "haproxy-#{node[:haproxy][:version]}-#{node[:haproxy][:patchlevel]}.#{rhel_arch}.rpm"
+default[:haproxy][:rpm_url] = "#{node[:opsworks_commons][:assets_url]}/packages/#{node[:platform]}/#{node[:platform_version]}/#{node[:haproxy][:rpm]}"
 
-default['haproxy']['defaults_options'] = ["httplog", "dontlognull", "redispatch"]
-default['haproxy']['x_forwarded_for'] = false
-default['haproxy']['global_options'] = {}
-default['haproxy']['defaults_timeouts']['connect'] = "5s"
-default['haproxy']['defaults_timeouts']['client'] = "50s"
-default['haproxy']['defaults_timeouts']['server'] = "50s"
-default['haproxy']['cookie'] = nil
+default[:haproxy][:stats_url] = '/haproxy?stats'
+default[:haproxy][:stats_user] = 'opsworks'
+default[:haproxy][:health_check_url] = '/'
+default[:haproxy][:health_check_method] = 'OPTIONS'
+default[:haproxy][:check_interval] = '10s'
+default[:haproxy][:client_timeout] = '60s'
+default[:haproxy][:server_timeout] = '60s'
+default[:haproxy][:queue_timeout] = '120s'
+default[:haproxy][:connect_timeout] = '10s'
+default[:haproxy][:http_request_timeout] = '30s'
+default[:haproxy][:global_max_connections] = '80000'
+default[:haproxy][:default_max_connections] = '80000'
+default[:haproxy][:retries] = '3'
+default[:haproxy][:httpclose] = true
+default[:haproxy][:http_server_close] = false
 
-default['haproxy']['global_max_connections'] = 4096
-default['haproxy']['member_max_connections'] = 100
-default['haproxy']['frontend_max_connections'] = 2000
-default['haproxy']['frontend_ssl_max_connections'] = 2000
+if rhel7?
+  default[:haproxy][:stats_socket_path] = "/var/lib/haproxy/stats"
+else
+  default[:haproxy][:stats_socket_path] = '/tmp/haproxy.sock'
+end
 
-default['haproxy']['install_method'] = 'package'
-default['haproxy']['conf_dir'] = '/etc/haproxy'
 
-default['haproxy']['source']['version'] = '1.4.22'
-default['haproxy']['source']['url'] = 'http://haproxy.1wt.eu/download/1.4/src/haproxy-1.4.22.tar.gz'
-default['haproxy']['source']['checksum'] = 'ba221b3eaa4d71233230b156c3000f5c2bd4dace94d9266235517fe42f917fc6'
-default['haproxy']['source']['prefix'] = '/usr/local'
-default['haproxy']['source']['target_os'] = 'generic'
-default['haproxy']['source']['target_cpu'] = ''
-default['haproxy']['source']['target_arch'] = ''
-default['haproxy']['source']['use_pcre'] = false
-default['haproxy']['source']['use_openssl'] = false
-default['haproxy']['source']['use_zlib'] = false
+default[:haproxy][:stats_socket_level] = nil # nil for default or 'user', 'operator', 'admin'
 
-default['haproxy']['package']['version'] = nil
+# load factors for maxcon
+default[:haproxy][:maxcon_factor_rails_app] = 7
+default[:haproxy][:maxcon_factor_rails_app_ssl] = 7
+default[:haproxy][:maxcon_factor_php_app] = 10
+default[:haproxy][:maxcon_factor_php_app_ssl] = 10
+default[:haproxy][:maxcon_factor_nodejs_app] = 10
+default[:haproxy][:maxcon_factor_nodejs_app_ssl] = 10
+default[:haproxy][:maxcon_factor_java_app] = 10
+default[:haproxy][:maxcon_factor_java_app_ssl] = 10
+default[:haproxy][:maxcon_factor_static] = 15
+default[:haproxy][:maxcon_factor_static_ssl] = 15
 
-default['haproxy']['listeners'] = {
-  'listen' => {},
-  'frontend' => {},
-  'backend' => {}
-}
+def random_haproxy_pw
+  rand_array = []
+  "a".upto("z"){|e| rand_array << e}
+  1.upto(9){|e| rand_array << e.to_s}
+
+  pw = ""
+  10.times do
+    pw += (rand_array[rand(rand_array.size) - 1])
+  end
+  pw
+end
+
+default[:haproxy][:stats_password] = random_haproxy_pw
+default[:haproxy][:enable_stats] = false
+
+default[:haproxy][:balance] = 'roundrobin'
+
+include_attribute "haproxy::customize"

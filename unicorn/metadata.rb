@@ -1,8 +1,9 @@
-name             "unicorn"
-maintainer       "Opscode, Inc"
-maintainer_email "cookbooks@opscode.com"
-license          "Apache 2.0"
-description      "Installs/Configures unicorn"
-long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
-version          "2.0.0"
-recipe "unicorn", "Installs unicorn rubygem"
+name        "unicorn"
+description "Manage unicorn"
+maintainer  "AWS OpsWorks"
+license     "Apache 2.0"
+version     "1.0.0"
+
+depends "apache2"
+depends "nginx"
+depends "rails"

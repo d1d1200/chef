@@ -1,21 +1,6 @@
-#
-# Author:: Adam Jacob <adam@opscode.com>
-# Cookbook Name:: unicorn
-# Recipe:: default
-#
-# Copyright 2009, Opscode, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
-gem_package "unicorn"
+ruby_block "ensure only our unicorn version is installed by deinstalling any other version" do
+  block do
+    ensure_only_gem_version("rack", node[:unicorn][:rack_version])
+    ensure_only_gem_version("unicorn", node[:unicorn][:version])
+  end
+end

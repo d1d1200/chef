@@ -2,7 +2,7 @@
 # Cookbook Name:: apache2
 # Recipe:: default
 #
-# Copyright 2008-2013, Opscode, Inc.
+# Copyright 2008, OpsCode, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,184 +18,236 @@
 #
 
 package 'apache2' do
-  package_name node['apache']['package']
+  case node[:platform_family]
+  when 'rhel'
+    package_name 'httpd'
+  when 'debian'
+    package_name 'apache2'
+  end
+  action :install
 end
+
+include_recipe 'apache2::service'
 
 service 'apache2' do
-  service_name node['apache']['package']
-  case node['platform_family']
-  when 'rhel'
-    reload_command '/sbin/service httpd graceful'
-  when 'debian'
-    provider Chef::Provider::Service::Debian
-  when 'arch'
-    service_name 'httpd'
-  end
-  supports [:start, :restart, :reload, :status]
-  action [:enable, :start]
-  only_if "#{node['apache']['binary']} -t", :environment => { 'APACHE_LOG_DIR' => node['apache']['log_dir'] }, :timeout => 2
+  service_name value_for_platform_family(
+    'rhel' => 'httpd',
+    'debian' => 'apache2'
+  )
+  action :enable
 end
 
-%w(sites-available sites-enabled mods-available mods-enabled conf-available conf-enabled).each do |dir|
-  directory "#{node['apache']['dir']}/#{dir}" do
-    mode '0755'
-    owner 'root'
-    group node['apache']['root_group']
+if platform_family?('debian')
+  execute "reset permission of #{node[:apache][:log_dir]}" do
+    command "chmod 0755 #{node[:apache][:log_dir]}"
   end
 end
 
-%w(default 000-default).each do |site|
-  file "#{node['apache']['dir']}/sites-enabled/#{site}" do
-    action :delete
-    backup false
-  end
-
-  file "#{node['apache']['dir']}/sites-available/#{site}" do
-    action :delete
-    backup false
-  end
+bash 'logdir_existence_and_restart_apache2' do
+  code <<-EOF
+    until
+      ls -la #{node[:apache][:log_dir]}
+    do
+      echo "Waiting for #{node[:apache][:log_dir]}..."
+      sleep 1
+    done
+  EOF
+  action :nothing
+  notifies :restart, resources(:service => 'apache2')
+  timeout 70
 end
 
-directory "#{node['apache']['dir']}/conf.d" do
-  action :delete
-  recursive true
-end
-
-directory node['apache']['log_dir'] do
-  mode '0755'
-end
-
-# perl is needed for the a2* scripts
-package node['apache']['perl_pkg']
-
-%w(a2ensite a2dissite a2enmod a2dismod a2enconf a2disconf).each do |modscript|
-  template "/usr/sbin/#{modscript}" do
-    source "#{modscript}.erb"
-    mode '0700'
-    owner 'root'
-    group node['apache']['root_group']
+if platform_family?('rhel')
+  directory node[:apache][:log_dir] do
+    mode 0755
     action :create
   end
-end
 
-unless platform_family?('debian')
   cookbook_file '/usr/local/bin/apache2_module_conf_generate.pl' do
     source 'apache2_module_conf_generate.pl'
-    mode '0755'
+    mode 0755
     owner 'root'
-    group node['apache']['root_group']
+    group 'root'
+  end
+
+  ['sites-available','sites-enabled','mods-available','mods-enabled'].each do |dir|
+    directory "#{node[:apache][:dir]}/#{dir}" do
+      mode 0755
+      owner 'root'
+      group 'root'
+      action :create
+    end
   end
 
   execute 'generate-module-list' do
-    command "/usr/local/bin/apache2_module_conf_generate.pl #{node['apache']['lib_dir']} #{node['apache']['dir']}/mods-available"
-    action :nothing
+    if node[:kernel][:machine] == 'x86_64'
+      libdir = 'lib64'
+    else
+      libdir = 'lib'
+    end
+    command "/usr/local/bin/apache2_module_conf_generate.pl /usr/#{libdir}/httpd/modules /etc/httpd/mods-available"
+    action :run
   end
 
-  # enable mod_deflate for consistency across distributions
-  include_recipe 'apache2::mod_deflate'
-end
-
-if platform_family?('freebsd')
-
-  directory "#{node['apache']['dir']}/Includes" do
-    action :delete
-    recursive true
-  end
-
-  directory "#{node['apache']['dir']}/extra" do
-    action :delete
-    recursive true
-  end
-end
-
-if platform_family?('suse')
-
-  directory "#{node['apache']['dir']}/vhosts.d" do
-    action :delete
-    recursive true
-  end
-
-  %w(charset.conv default-vhost.conf default-server.conf default-vhost-ssl.conf errors.conf listen.conf mime.types mod_autoindex-defaults.conf mod_info.conf mod_log_config.conf mod_status.conf mod_userdir.conf mod_usertrack.conf uid.conf).each do |file|
-    file "#{node['apache']['dir']}/#{file}" do
-      action :delete
-      backup false
+  ['a2ensite','a2dissite','a2enmod','a2dismod'].each do |modscript|
+    template "/usr/sbin/#{modscript}" do
+      source "#{modscript}.erb"
+      mode 0755
+      owner 'root'
+      group 'root'
     end
   end
-end
 
-%W(
-  #{node['apache']['dir']}/ssl
-  #{node['apache']['cache_dir']}
-).each do |path|
-  directory path do
-    mode '0755'
-    owner 'root'
-    group node['apache']['root_group']
+  conf_dir = node[:apache][:conf_enabled_dir] || "#{node[:apache][:dir]}/conf.d"
+
+  # installed by default on centos/rhel, remove in favour of mods-enabled
+  file "#{conf_dir}/proxy_ajp.conf" do
+    action :delete
+    backup false
+  end
+
+  file "#{conf_dir}/README" do
+    action :delete
+    backup false
+  end
+
+  # welcome page moved to the default-site.rb temlate
+  file "#{conf_dir}/welcome.conf" do
+    action :delete
+    backup false
   end
 end
 
-# Set the preferred execution binary - prefork or worker
-template "/etc/sysconfig/#{node['apache']['package']}" do
-  source 'etc-sysconfig-httpd.erb'
+directory "#{node[:apache][:dir]}/ssl" do
+  action :create
+  mode 0755
   owner 'root'
-  group node['apache']['root_group']
-  mode '0644'
-  notifies :restart, 'service[apache2]', :delayed
-  only_if  { platform_family?('rhel', 'fedora', 'suse') }
+  group 'root'
 end
 
-template "#{node['apache']['dir']}/envvars" do
+template "#{node[:apache][:dir]}/envvars" do
   source 'envvars.erb'
   owner 'root'
-  group node['apache']['root_group']
-  mode '0644'
-  notifies :reload, 'service[apache2]', :delayed
-  only_if  { platform_family?('debian') }
+  group 'root'
+  mode 0644
+  notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+  only_if { platform?('ubuntu') && node[:platform_version] == '14.04' }
 end
 
 template 'apache2.conf' do
-  if platform_family?('rhel', 'fedora', 'arch', 'freebsd')
-    path "#{node['apache']['conf_dir']}/httpd.conf"
-  elsif platform_family?('debian')
-    path "#{node['apache']['conf_dir']}/apache2.conf"
-  elsif platform_family?('suse')
-    path "#{node['apache']['conf_dir']}/httpd.conf"
+  case node[:platform_family]
+  when 'rhel'
+    path "#{node[:apache][:dir]}/conf/httpd.conf"
+  when 'debian'
+    path "#{node[:apache][:dir]}/apache2.conf"
   end
-  action :create
   source 'apache2.conf.erb'
   owner 'root'
-  group node['apache']['root_group']
-  mode '0644'
-  notifies :reload, 'service[apache2]', :delayed
+  group 'root'
+  mode 0644
+  notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
 end
 
-%w(security charset).each do |conf|
-  apache_conf conf do
-    enable true
+if platform?('ubuntu') && node[:platform_version] == '14.04'
+  execute 'disable config for serve-cgi-bin' do
+    command '/usr/sbin/a2disconf serve-cgi-bin'
+    user 'root'
+  end
+
+  template "#{node[:apache][:dir]}/ports.conf" do
+    source "ports.conf.erb"
+    owner 'root'
+    group 'root'
+    mode 0644
+    backup false
+  end
+
+  ['security', 'charset'].each do |config|
+    template "#{node[:apache][:conf_available_dir]}/#{config}.conf" do
+      source "#{config}.conf.erb"
+      owner 'root'
+      group 'root'
+      mode 0644
+      backup false
+    end
+
+    execute "enable config #{config}" do
+      command "/usr/sbin/a2enconf #{config}"
+      user 'root'
+      notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+    end
+  end
+else
+  template 'security' do
+    path "#{node[:apache][:dir]}/conf.d/security"
+    source 'security.erb'
+    owner 'root'
+    group 'root'
+    mode 0644
+    backup false
+    notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+  end
+
+  template 'charset' do
+    path "#{node[:apache][:dir]}/conf.d/charset"
+    source 'charset.erb'
+    owner 'root'
+    group 'root'
+    mode 0644
+    backup false
+    notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+  end
+
+  template "#{node[:apache][:dir]}/ports.conf" do
+    source 'ports.conf.erb'
+    group 'root'
+    owner 'root'
+    mode 0644
+    notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
   end
 end
 
-apache_conf 'ports' do
-  enable false
-  conf_path node['apache']['dir']
+if platform?('ubuntu') && node[:platform_version] == '14.04'
+  default_site_config = "#{node[:apache][:dir]}/sites-available/000-default.conf"
+else
+  default_site_config = "#{node[:apache][:dir]}/sites-available/default"
+end
+template default_site_config do
+  source 'default-site.erb'
+  owner 'root'
+  group 'root'
+  mode 0644
+  notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
 end
 
-if node['apache']['version'] == '2.4' && !platform_family?('freebsd')
-  # on freebsd the prefork mpm is staticly compiled in
-  include_recipe "apache2::mpm_#{node['apache']['mpm']}"
+include_recipe 'apache2::mod_status'
+include_recipe 'apache2::mod_headers'
+include_recipe 'apache2::mod_alias'
+include_recipe 'apache2::mod_auth_basic'
+include_recipe 'apache2::mod_authn_file'
+include_recipe 'apache2::mod_authz_default' if node[:apache][:version] == '2.2'
+include_recipe 'apache2::mod_authz_groupfile'
+include_recipe 'apache2::mod_authz_host'
+include_recipe 'apache2::mod_authz_user'
+include_recipe 'apache2::mod_autoindex'
+include_recipe 'apache2::mod_dir'
+include_recipe 'apache2::mod_env'
+include_recipe 'apache2::mod_mime'
+include_recipe 'apache2::mod_negotiation'
+include_recipe 'apache2::mod_setenvif'
+include_recipe 'apache2::mod_log_config' if platform_family?('rhel')
+include_recipe 'apache2::mod_ssl'
+include_recipe 'apache2::mod_expires'
+include_recipe 'apache2::logrotate'
+
+bash 'logdir_existence_and_restart_apache2' do
+  action :run
 end
 
-node['apache']['default_modules'].each do |mod|
-  module_recipe_name = mod =~ /^mod_/ ? mod : "mod_#{mod}"
-  include_recipe "apache2::#{module_recipe_name}"
-end
-
-web_app 'default' do
-  template 'default-site.conf.erb'
-  path "#{node['apache']['dir']}/sites-available/default.conf"
-  enable node['apache']['default_site_enabled']
-end
-
-apache_site '000-default' do
-  enable node['apache']['default_site_enabled']
+file "#{node[:apache][:document_root]}/index.html" do
+  action :delete
+  backup false
+  only_if do
+    File.exists?("#{node[:apache][:document_root]}/index.html")
+  end
 end

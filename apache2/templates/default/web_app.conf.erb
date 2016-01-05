@@ -1,53 +1,41 @@
-<VirtualHost *:<%= @params[:server_port] || node['apache']['listen_ports'].first %>>
+<VirtualHost *:80>
   ServerName <%= @params[:server_name] %>
-  <% if @params[:server_aliases] -%>
-  ServerAlias <%= @params[:server_aliases].join " " %>
+  <% if @params[:server_aliases] && !@params[:server_aliases].empty? -%>
+  ServerAlias <% @params[:server_aliases].each do |a| %><%= "#{a}" %> <% end %>
   <% end -%>
   DocumentRoot <%= @params[:docroot] %>
+  RewriteEngine On
 
   <Directory <%= @params[:docroot] %>>
-    Options <%= [@params[:directory_options] || "FollowSymLinks" ].flatten.join " " %>
-    AllowOverride <%= [@params[:allow_override] || "None" ].flatten.join " " %>
-  <% if node['apache']['version'] == '2.4' -%>
-    Require all granted
-  <% else -%>
+    Options FollowSymLinks
+    AllowOverride All
     Order allow,deny
     Allow from all
-  <% end -%>
   </Directory>
 
   <Directory />
     Options FollowSymLinks
-    AllowOverride None
+    AllowOverride All
   </Directory>
 
   <Location /server-status>
     SetHandler server-status
 
-  <% if node['apache']['version'] == '2.4' -%>
-    Require local
-  <% else -%>
     Order Deny,Allow
     Deny from all
     Allow from 127.0.0.1
-  <% end -%>
-
   </Location>
 
+  LogLevel <%= node[:apache][:log_level] %>
+  ErrorLog <%= node[:apache][:log_dir] %>/<%= @params[:name] %>-error.log
+  CustomLog <%= node[:apache][:log_dir] %>/<%= @params[:name] %>-access.log combined
+
+  FileETag none
+
   RewriteEngine On
-  <%- if node['apache']['version'] == '2.4' -%>
-  LogLevel info rewrite:trace1
-  <%- else -%>
-  LogLevel info
-  RewriteLog <%= node['apache']['log_dir'] %>/<%= @application_name %>-rewrite.log
+  <% if node[:apache][:version].nil? || node[:apache][:version] == '2.2' -%>
+  RewriteLog <%= node[:apache][:log_dir] %>/<%= @application_name %>-rewrite.log
   RewriteLogLevel 0
-  <%- end -%>
-
-  ErrorLog <%= node['apache']['log_dir'] %>/<%= @params[:name] %>-error.log
-  CustomLog <%= node['apache']['log_dir'] %>/<%= @params[:name] %>-access.log combined
-
-  <% if @params[:directory_index] -%>
-  DirectoryIndex <%= [@params[:directory_index]].flatten.join " " %>
   <% end -%>
 
   # Canonical host, <%= @params[:server_name] %>
@@ -58,4 +46,5 @@
   RewriteCond %{DOCUMENT_ROOT}/system/maintenance.html -f
   RewriteCond %{SCRIPT_FILENAME} !maintenance.html
   RewriteRule ^.*$ /system/maintenance.html [L]
+
 </VirtualHost>

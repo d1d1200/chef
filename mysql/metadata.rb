@@ -1,21 +1,10 @@
-name 'mysql'
-maintainer 'Chef Software, Inc.'
-maintainer_email 'cookbooks@getchef.com'
-license 'Apache 2.0'
-description 'Provides mysql_service and mysql_client resources'
+name        "mysql"
+description "Installs and configures MySQL"
+maintainer  "AWS OpsWorks"
+license     "Apache 2.0"
+version     "1.0.0"
 
-version '5.5.4'
+depends "opsworks_commons"
 
-supports 'amazon'
-supports 'redhat'
-supports 'centos'
-supports 'scientific'
-supports 'fedora'
-supports 'debian'
-supports 'ubuntu'
-supports 'smartos'
-supports 'omnios'
-supports 'freebsd'
-supports 'suse'
-
-depends 'yum-mysql-community'
+recipe "mysql::client", "Installs MySQL"
+recipe "mysql::server", "Installs MySQL"

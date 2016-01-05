@@ -1,6 +1,6 @@
 #
 # Cookbook Name:: passenger_apache2
-# Recipe:: mod_rails
+# Recipe:: default
 #
 # Author:: Joshua Timberman (<joshua@opscode.com>)
 # Author:: Joshua Sierles (<joshua@37signals.com>)
@@ -22,10 +22,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include_recipe 'passenger_apache2'
+include_recipe "passenger_apache2"
 
-if platform_family?('debian')
-  template "#{node['apache']['dir']}/mods-available/passenger.load" do
+if platform?("centos","redhat","amazon") and dist_only?
+  package "mod_passenger" do
+    notifies :run, "execute[generate-module-list]", :immediately
+  end
+
+  file "#{node[:apache][:dir]}/conf.d/mod_passenger.conf" do
+    action :delete
+    backup false
+  end
+else
+  template "#{node[:apache][:dir]}/mods-available/passenger.load" do
     cookbook 'passenger_apache2'
     source 'passenger.load.erb'
     owner 'root'
@@ -34,17 +43,14 @@ if platform_family?('debian')
   end
 end
 
-# Allows proper default path if root path was overridden
-node.default['passenger']['module_path'] = "#{node['passenger']['root_path']}/#{PassengerConfig.build_directory_for_version(node['passenger']['version'])}/apache2/mod_passenger.so"
-
-template "#{node['apache']['dir']}/mods-available/passenger.conf" do
-  cookbook 'passenger_apache2'
-  source 'passenger.conf.erb'
-  owner 'root'
-  group 'root'
+template "#{node[:apache][:dir]}/mods-available/passenger.conf" do
+  cookbook "passenger_apache2"
+  source "passenger.conf.erb"
+  owner "root"
+  group "root"
   mode 0644
 end
 
 apache_module 'passenger' do
-  module_path node['passenger']['module_path']
+  module_path node[:passenger][:module_path]
 end

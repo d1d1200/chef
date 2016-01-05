@@ -2,7 +2,7 @@
 # Cookbook Name:: apache2
 # Definition:: apache_site
 #
-# Copyright 2008-2013, Opscode, Inc.
+# Copyright 2008, OpsCode, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,26 +18,26 @@
 #
 
 define :apache_site, :enable => true do
-  include_recipe 'apache2::default'
-  conf_name = "#{params[:name]}.conf"
+  include_recipe 'apache2'
 
   if params[:enable]
-    execute "a2ensite #{conf_name}" do
-      command "/usr/sbin/a2ensite #{conf_name}"
-      notifies :reload, 'service[apache2]', :delayed
+    execute "a2ensite #{params[:name]}" do
+      command "/usr/sbin/a2ensite #{params[:name]}"
+      notifies :restart, "service[apache2]"
       not_if do
-        ::File.symlink?("#{node['apache']['dir']}/sites-enabled/#{conf_name}") ||
-        ::File.symlink?("#{node['apache']['dir']}/sites-enabled/000-#{conf_name}")
+        ::File.symlink?("#{node[:apache][:dir]}/sites-enabled/#{params[:name]}") or
+          ::File.symlink?("#{node[:apache][:dir]}/sites-enabled/000-#{params[:name]}")
       end
-      only_if { ::File.exist?("#{node['apache']['dir']}/sites-available/#{conf_name}") }
+      only_if do
+        ::File.exists?("#{node[:apache][:dir]}/sites-available/#{params[:name]}")
+      end
     end
   else
-    execute "a2dissite #{conf_name}" do
-      command "/usr/sbin/a2dissite #{conf_name}"
-      notifies :reload, 'service[apache2]', :delayed
+    execute "a2dissite #{params[:name]}" do
+      command "/usr/sbin/a2dissite #{params[:name]}"
+      notifies :restart, "service[apache2]"
       only_if do
-        ::File.symlink?("#{node['apache']['dir']}/sites-enabled/#{conf_name}") ||
-        ::File.symlink?("#{node['apache']['dir']}/sites-enabled/000-#{conf_name}")
+        ::File.symlink?("#{node[:apache][:dir]}/sites-enabled/#{params[:name]}")
       end
     end
   end
