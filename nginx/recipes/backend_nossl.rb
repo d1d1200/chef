@@ -30,6 +30,6 @@ template "#{node[:nginx][:dir]}/sites-available/#{node[:nginx][:backend_nossl][:
 end
 
 #enable your sites configuration using a definition from the nginx cookbook
-nginx_site "#{node['nginx']['beno_bename']}" do
+nginx_site "#{node[:nginx][:backend_nossl][:beno_bename]}" do
   enable true
 end
