@@ -22,7 +22,7 @@
 include_recipe "nginx"
 
 
-template "#{node['nginx']['dir']}/sites-available/#{node['nginx']['beno_bename']}" do
+template "#{node[:nginx][:dir]}/sites-available/#{node[:nginx][:backend_nossl][:beno_bename]}" do
   source 'backend_nossl.erb'
   owner  'root'
   mode   '0644'
