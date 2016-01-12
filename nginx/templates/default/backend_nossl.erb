@@ -11,7 +11,7 @@ upstream <%= node[:nginx][:backend_nossl][:beno_bename] %> {
 
 server {
   listen   <%= node[:nginx][:backend_nossl][:beno_port] %>;
-  server_name   <%= node[:nginx][:backend_nossl][:beno_servername] %>;
+  server_name   <%= node[:nginx][:backend_nossl][:beno_servername] rescue 'plsgivename' %>;
   error_log   <%= node[:nginx][:backend_nossl][:beno_log_dir] %>/<%= node[:nginx][:backend_nossl][:beno_bename] %>-errors.log;
   access_log  <%= node[:nginx][:backend_nossl][:beno_log_dir] %>/<%= node[:nginx][:backend_nossl][:beno_bename] %>-access.log;
 
