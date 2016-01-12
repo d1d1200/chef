@@ -1,4 +1,4 @@
-define :nginx_rp, :template => "backend_nossl.erb", :enable => true do
+define :backend_nossl, :template => "backend_nossl.erb", :enable => true do
   include_recipe "nginx::service"
 
   template "#{node[:nginx][:dir]}/sites-available/#{beno_bename}" do
