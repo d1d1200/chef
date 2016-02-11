@@ -2,6 +2,10 @@ upstream unicorn_<%= @application[:domains].first %> {
  server unix:<%= @application[:deploy_to]%>/shared/sockets/unicorn.sock fail_timeout=0;
 }
 
+<% if node[:nginx][:proxy_cache_path] -%>
+proxy_cache_path <%= node[:nginx][:proxy_cache_path] rescue '/var/lib/nginx/cache levels=1:2 keys_zone=backcache:10m max_size=256m' %>;
+<% end -%>
+
 server {
   listen 80;
   server_name <%= @application[:domains].join(" ") %> <%= node[:hostname] %>;
@@ -44,6 +48,23 @@ server {
       proxy_pass http://unicorn_<%= @application[:domains].first %>;
       break;
     }
+    # custom proxy cache
+
+    <% if node[:nginx][:proxy_cache_key] -%>
+    proxy_cache_key "<%= node[:nginx][:proxy_cache_key] rescue '$request_method$request_uri$is_args$args$http_locale' %>";
+    <% end -%>
+    <% if node[:nginx][:proxy_cache_valid] -%>
+    proxy_cache_valid <%= node[:nginx][:proxy_cache_valid] rescue '200 302 10m' %>;
+    <% end -%>
+    <% if node[:nginx][:proxy_cache] -%>
+    proxy_cache <%= node[:nginx][:proxy_cache] rescue 'backcache' %>;
+    <% end -%>
+    <% if node[:nginx][:proxy_cache_bypass] -%>
+    proxy_cache_bypass <%= node[:nginx][:proxy_cache_bypass] rescue '$http_cache_control' %>;
+    <% end -%>
+    <% if node[:nginx][:xcache] -%>
+    add_header X-Cache <%= node[:nginx][:xcache] rescue '$upstream_cache_status' %>;
+    <% end -%>
   }
 
   location /nginx_status {
@@ -96,6 +117,23 @@ server {
   <% if node[:nginx] && node[:nginx][:proxy_send_timeout] -%>
     proxy_send_timeout <%= node[:nginx][:proxy_send_timeout] %>;
   <% end -%>
+
+  # custom proxy cache
+    <% if node[:nginx][:proxy_cache_key] -%>
+    proxy_cache_key "<%= node[:nginx][:proxy_cache_key] rescue '$request_method$request_uri$is_args$args$http_locale' %>";
+    <% end -%>
+    <% if node[:nginx][:proxy_cache_valid] -%>
+    proxy_cache_valid <%= node[:nginx][:proxy_cache_valid] rescue '200 302 10m' %>;
+    <% end -%>
+    <% if node[:nginx][:proxy_cache] -%>
+    proxy_cache <%= node[:nginx][:proxy_cache] rescue 'backcache' %>;
+    <% end -%>
+    <% if node[:nginx][:proxy_cache_bypass] -%>
+    proxy_cache_bypass <%= node[:nginx][:proxy_cache_bypass] rescue '$http_cache_control' %>;
+    <% end -%>
+    <% if node[:nginx][:xcache] -%>
+    add_header X-Cache <%= node[:nginx][:xcache] rescue '$upstream_cache_status' %>;
+    <% end -%>
 
     # If you don't find the filename in the static files
     # Then request it from the unicorn server
