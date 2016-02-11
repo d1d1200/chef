@@ -16,6 +16,10 @@ upstream unicorn_<%= [:unicorn][:unicorn_web_app][:application].first %> {
 }
 <% end -%>
 
+<% if node[:nginx][:backend_nossl][:proxy_cache_path] -%>
+proxy_cache_path <%= node[:nginx][:backend_nossl][:proxy_cache_path] rescue '/var/lib/nginx/cache levels=1:2 keys_zone=backcache:10m max_size=256m' %>;
+<% end -%>
+
 server {
   listen   <%= node[:nginx][:backend_nossl][:beno_port] %>;
   server_name   <%= node[:nginx][:backend_nossl][:beno_servername] rescue 'plsgivename' %>;
@@ -43,9 +47,7 @@ server {
     add_header Access-Control-Allow-Credentials true;
 
     # custom proxy cache
-    <% if node[:nginx][:backend_nossl][:proxy_cache_path] -%>
-    proxy_cache_path <%= node[:nginx][:backend_nossl][:proxy_cache_path] rescue '/var/lib/nginx/cache levels=1:2 keys_zone=backcache:10m max_size=256m' %>;
-    <% end -%>
+
     <% if node[:nginx][:backend_nossl][:proxy_cache_key] -%>
     proxy_cache_key "<%= node[:nginx][:backend_nossl][:proxy_cache_key] rescue '$request_method$request_uri$is_args$args$http_locale' %>";
     <% end -%>
