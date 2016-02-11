@@ -11,8 +11,8 @@ upstream <%= node[:nginx][:backend_nossl][:beno_bename] %> {
     <% end -%>
 }
 <% else -%>
-upstream unicorn_<%= @application[:domains].first %> {
- server unix:<%= @application[:deploy_to]%>/shared/sockets/unicorn.sock fail_timeout=0;
+upstream unicorn_<%= [:unicorn][:unicorn_web_app][:application].first %> {
+ server unix:<%= [:unicorn][:deploy_to]%>/shared/sockets/unicorn.sock fail_timeout=0;
 }
 <% end -%>
 
