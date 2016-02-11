@@ -7,13 +7,12 @@ upstream <%= node[:nginx][:backend_nossl][:beno_bename] %> {
     <% if @be_backend1 %>
     server <%= node[:nginx][:backend_nossl][:beno_backend1] rescue 'localhost' %>:<%= node[:nginx][:backend_nossl][:beno_backend1_port] rescue '8000' %> weight=1 fail_timeout=0;
     <% end -%>
-else
+}
+<% else -%>
 upstream unicorn_<%= @application[:domains].first %> {
  server unix:<%= @application[:deploy_to]%>/shared/sockets/unicorn.sock fail_timeout=0;
 }
 <% end -%>
-
-}
 
 server {
   listen   <%= node[:nginx][:backend_nossl][:beno_port] %>;
